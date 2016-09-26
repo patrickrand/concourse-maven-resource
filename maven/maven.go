@@ -3,6 +3,7 @@ package maven
 import (
 	"encoding/xml"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"strings"
 )
@@ -19,6 +20,33 @@ func NewArtifact(repository, groupID, artifactID string) *Artifact {
 		GroupID:    groupID,
 		ArtifactID: artifactID,
 	}
+}
+
+func (a *Artifact) DownloadLatest(dest string) error {
+	metadata, err := a.GetMetadata()
+	if err != nil {
+		return err
+	}
+
+	version := metadata.Versioning.Latest
+
+	uri := fmt.Sprintf("%s/%s/%s/%s/%s-%s.jar", a.Repository, strings.Replace(a.GroupID, ".", "/", -1), a.ArtifactID, version, a.ArtifactID, version)
+	resp, err := http.Get(uri)
+	if err != nil {
+		return err
+	}
+
+	data, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+	resp.Body.Close()
+
+	if err := ioutil.WriteFile(dest, data, 0777); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (a *Artifact) GetMetadata() (Metadata, error) {
